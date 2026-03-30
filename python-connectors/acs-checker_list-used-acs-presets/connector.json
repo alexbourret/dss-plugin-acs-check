@@ -8,5 +8,11 @@
     "writable": false,
     "supportAppend": false,
     "params": [
+        {
+            "name": "project_key",
+            "label": "Project",
+            "description": "Project key to analyse, leave empty to analyse the whole instance",
+            "type": "STRING"
+        }
     ]
 }

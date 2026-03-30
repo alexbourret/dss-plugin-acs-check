@@ -7,6 +7,7 @@ class ACSCheckerConnector(Connector):
 
     def __init__(self, config, plugin_config):
         Connector.__init__(self, config, plugin_config)  # pass the parameters to the base class
+        self.project_key = config.get("project_key", None)
 
     def get_read_schema(self):
         return None
@@ -16,59 +17,16 @@ class ACSCheckerConnector(Connector):
         limit = RecordsLimit(records_limit)
         client = dataiku.api_client()
         dss_client_url = client.get_general_settings().get_raw().get('studioExternalUrl', "set studioExternalUrl")
-        plugin_handle = client.get_plugin("sharepoint-online")
-        plugin_usages = plugin_handle.list_usages()
-        if plugin_usages.usages:
-            for plugin_usage in plugin_usages.usages:
-                raw_params = None
-                project = client.get_project(plugin_usage.project_key)
-                if plugin_usage.object_type == "RECIPE":
-                    recipe = project.get_recipe(plugin_usage.object_id)
-                    recipe_settings = recipe.get_settings()
-                    raw_params = recipe_settings.raw_params
-                    item_type = "recipes"
-                elif plugin_usage.object_type == "DATASET":
-                    dataset = project.get_dataset(plugin_usage.object_id)
-                    item_type = "datasets"
-                    raw_params = None
-                    try:
-                        dataset_settings = dataset.get_settings()
-                        raw_params = dataset_settings.get_raw_params()
-                    except Exception as exception:
-                        print("Dataset {} could not be retrieved".format(plugin_usage.object_id))
-                        continue
-                auth_type = get_auth_type(raw_params)
-                output = {
-                    "dss_client": dss_client_url,
-                    "element_type": plugin_usage.element_type,
-                    "kind": plugin_usage.element_kind,
-                    "project_key": plugin_usage.project_key,
-                    "object_id": plugin_usage.object_id,
-                }
-                if auth_type == "site-app-permissions":
-                    output["Status"] = "KO"
-                    if item_type == "datasets":
-                        output["To check"] = "{}/projects/{}/datasets/{}/settings/".format(
-                            dss_client_url,
-                            plugin_usage.project_key,
-                            plugin_usage.object_id
-                        )
-                    else:
-                        output["To check"] = "{}/projects/{}/recipes/{}/".format(
-                            dss_client_url,
-                            plugin_usage.project_key,
-                            plugin_usage.object_id
-                        )
-                else:
-                    output["Status"] = "OK"
-                    output["To check"] = None
-                yield output
-                if limit.is_reached():
-                    return
 
-        for project_info in client.list_projects():
+        projects_keys = []
+        if not self.project_key:
+            projects = client.list_projects()
+            for project in projects:
+                projects_keys.append(project.get("projectKey"))
+        else:
+            projects_keys = [self.project_key]
+        for project_key in projects_keys:
             output = {}
-            project_key = project_info["projectKey"]
             project = client.get_project(project_key)
             for folder_summary in project.list_managed_folders():
                 folder_id = folder_summary["id"]
@@ -99,6 +57,80 @@ class ACSCheckerConnector(Connector):
                 if limit.is_reached():
                     return
 
+            for dataset in project.list_datasets():
+                dataset_type = dataset.get("type")
+                dataset_id = dataset.get("name")
+                if dataset_type == "CustomPython_sharepoint-online_lists":
+                    output = {
+                        "dss_client": dss_client_url,
+                        "element_type": dataset_type,
+                        "kind": "python-connectors",
+                        "project_key": project_key,
+                        "object_id": dataset_id,
+                    }
+                    auth_type = get_auth_type(dataset)
+                    if auth_type == "site-app-permissions":
+                        output["Status"] = "KO"
+                        output["To check"] = "{}/projects/{}/datasets/{}/settings/".format(
+                            dss_client_url,
+                            project_key,
+                            dataset_id
+                        )
+                    else:
+                        output["Status"] = "OK"
+                        output["To check"] = None
+                    yield output
+                    if limit.is_reached():
+                        return
+                if dataset_type == "fsprovider_sharepoint-online_sharepoint-online_shared-documents":
+                    output = {
+                        "dss_client": dss_client_url,
+                        "element_type": dataset_type,
+                        "kind": "python-fs-providers",
+                        "project_key": project_key,
+                        "object_id": dataset_id,
+                    }
+                    auth_type = get_auth_type(dataset)
+                    if auth_type == "site-app-permissions":
+                        output["Status"] = "KO"
+                        output["To check"] = "{}/projects/{}/datasets/{}/settings/".format(
+                            dss_client_url,
+                            project_key,
+                            dataset_id
+                        )
+                    else:
+                        output["Status"] = "OK"
+                        output["To check"] = None
+                    yield output
+                    if limit.is_reached():
+                        return
+
+            for recipe in project.list_recipes():
+                recipe_type = recipe.get("type")
+                recipe_id = recipe.get("name")
+                if recipe_type == "CustomCode_sharepoint-online-append-list":
+                    output = {
+                        "dss_client": dss_client_url,
+                        "element_type": recipe_type,
+                        "kind": "custom-recipes",
+                        "project_key": project_key,
+                        "object_id": recipe_id,
+                    }
+                    auth_type = get_auth_type(recipe)
+                    if auth_type == "site-app-permissions":
+                        output["Status"] = "KO"
+                        output["To check"] = "{}/projects/{}/recipes/{}/".format(
+                            dss_client_url,
+                            project_key,
+                            recipe_id
+                        )
+                    else:
+                        output["Status"] = "OK"
+                        output["To check"] = None
+                    yield output
+                    if limit.is_reached():
+                        return
+
     def get_writer(self, dataset_schema=None, dataset_partitioning=None,
                    partition_id=None, write_mode="OVERWRITE"):
         raise NotImplementedError
@@ -127,6 +159,10 @@ def get_config_section(raw_parameters):
     if "customConfig" in raw_parameters:
         return raw_parameters.get("customConfig")
     elif "params" in raw_parameters:
-        return raw_parameters.get("params", {}).get("config", {})
+        params = raw_parameters.get("params", {})
+        if "customConfig" in params:
+            return params.get("customConfig")
+        else:
+            return params.get("config")
     else:
         return raw_parameters.get("config", {})
