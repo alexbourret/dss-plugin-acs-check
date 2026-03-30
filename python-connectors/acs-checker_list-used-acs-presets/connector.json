@@ -1,0 +1,12 @@
+{
+    "meta" : {
+        "label": "Custom dataset acs-checker_list-used-acs-presets",
+        "description": "",
+        "icon": "dku-icon-recipe-list-access"
+    },
+    "readable": true,
+    "writable": false,
+    "supportAppend": false,
+    "params": [
+    ]
+}
