@@ -1,7 +1,7 @@
 {
     "meta" : {
-        "label": "Custom dataset acs-checker_list-used-acs-presets",
-        "description": "",
+        "label": "Detect ACS SharePoint presets usage",
+        "description": "Search all SP recipes, datasets and folders using ACS presets",
         "icon": "dku-icon-recipe-list-access"
     },
     "readable": true,
