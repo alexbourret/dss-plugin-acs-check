@@ -22,13 +22,14 @@ class ACSCheckerConnector(Connector):
             for plugin_usage in plugin_usages.usages:
                 raw_params = None
                 project = client.get_project(plugin_usage.project_key)
-                print("ALX:{}".format(plugin_usage.object_type))
                 if plugin_usage.object_type == "RECIPE":
                     recipe = project.get_recipe(plugin_usage.object_id)
                     recipe_settings = recipe.get_settings()
                     raw_params = recipe_settings.raw_params
+                    item_type = "recipes"
                 elif plugin_usage.object_type == "DATASET":
                     dataset = project.get_dataset(plugin_usage.object_id)
+                    item_type = "datasets"
                     raw_params = None
                     try:
                         dataset_settings = dataset.get_settings()
@@ -46,11 +47,18 @@ class ACSCheckerConnector(Connector):
                 }
                 if auth_type == "site-app-permissions":
                     output["Status"] = "KO"
-                    output["To check"] = "{}/projects/{}/datasets/{}/settings/".format(
-                        dss_client_url,
-                        plugin_usage.project_key,
-                        plugin_usage.object_id
-                    )
+                    if item_type == "datasets":
+                        output["To check"] = "{}/projects/{}/datasets/{}/settings/".format(
+                            dss_client_url,
+                            plugin_usage.project_key,
+                            plugin_usage.object_id
+                        )
+                    else:
+                        output["To check"] = "{}/projects/{}/recipes/{}/".format(
+                            dss_client_url,
+                            plugin_usage.project_key,
+                            plugin_usage.object_id
+                        )
                 else:
                     output["Status"] = "OK"
                     output["To check"] = None
