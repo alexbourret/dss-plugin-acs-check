@@ -53,7 +53,9 @@ Choose one installation method.
 
 1. In a project, create a new dataset.
 2. Select the plugin connector **Custom dataset acs-checker_list-used-acs-presets**.
-3. Save the dataset (no parameters required).
+3. In the dataset settings, optionally set the `Project` box:
+   - set a DSS project ID to scan only that project
+   - leave it empty to scan all projects in the instance
 4. Build/read the dataset.
 5. Filter on `Status = KO` to list objects that require migration.
 6. Open links in `To check` and update the SharePoint preset.
@@ -67,6 +69,7 @@ Typical columns returned by the dataset:
 - `kind`: object category
 - `project_key`: DSS project key
 - `object_id`: recipe/dataset/folder identifier
+- `Preset name`: ACS preset name used by flagged objects, or `Manually defined`
 - `Status`: `OK` or `KO`
 - `To check`: settings URL for flagged objects
 
@@ -74,7 +77,8 @@ Typical columns returned by the dataset:
 
 - The dataset is read-only.
 - The plugin detects deprecated ACS usage by checking `auth_type == site-app-permissions`.
-- The scan covers all projects accessible to the executing user/API context.
+- If `Project` is set, only that project is scanned.
+- If `Project` is empty, the scan covers all projects accessible to the executing user/API context.
 
 ## Suggested remediation workflow
 
@@ -86,4 +90,4 @@ Typical columns returned by the dataset:
 ## Version
 
 - Plugin ID: `acs-checker`
-- Current version: `0.0.1`
+- Current version: `0.0.3`
