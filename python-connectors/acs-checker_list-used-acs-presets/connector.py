@@ -157,7 +157,6 @@ class ACSCheckerConnector(Connector):
 
 
 def get_auth_type(raw_parameters):
-    print("ALX:raw={}".format(raw_parameters))
     config_section = get_config_section(raw_parameters)
     preset_name = get_preset_name(config_section)
     return config_section.get("auth_type", None), preset_name
