@@ -35,7 +35,7 @@ class ACSCheckerConnector(Connector):
                 folder_type = definition.get("type", "")
                 if folder_type != "fsprovider_sharepoint-online_sharepoint-online_shared-documents":
                     continue
-                auth_type = get_auth_type(definition)
+                auth_type, preset_name = get_auth_type(definition)
                 output = {
                     "dss_client": dss_client_url,
                     "element_type": folder_type,
@@ -50,9 +50,11 @@ class ACSCheckerConnector(Connector):
                         project_key,
                         folder_id
                     )
+                    output["Preset name"] = preset_name
                 else:
                     output["Status"] = "OK"
                     output["To check"] = None
+                    output["Preset name"] = None
                 yield output
                 if limit.is_reached():
                     return
@@ -68,7 +70,7 @@ class ACSCheckerConnector(Connector):
                         "project_key": project_key,
                         "object_id": dataset_id,
                     }
-                    auth_type = get_auth_type(dataset)
+                    auth_type, preset_name = get_auth_type(dataset)
                     if auth_type == "site-app-permissions":
                         output["Status"] = "KO"
                         output["To check"] = "{}/projects/{}/datasets/{}/settings/".format(
@@ -76,9 +78,11 @@ class ACSCheckerConnector(Connector):
                             project_key,
                             dataset_id
                         )
+                        output["Preset name"] = preset_name
                     else:
                         output["Status"] = "OK"
                         output["To check"] = None
+                        output["Preset name"] = None
                     yield output
                     if limit.is_reached():
                         return
@@ -90,7 +94,7 @@ class ACSCheckerConnector(Connector):
                         "project_key": project_key,
                         "object_id": dataset_id,
                     }
-                    auth_type = get_auth_type(dataset)
+                    auth_type, preset_name = get_auth_type(dataset)
                     if auth_type == "site-app-permissions":
                         output["Status"] = "KO"
                         output["To check"] = "{}/projects/{}/datasets/{}/settings/".format(
@@ -98,9 +102,11 @@ class ACSCheckerConnector(Connector):
                             project_key,
                             dataset_id
                         )
+                        output["Preset name"] = preset_name
                     else:
                         output["Status"] = "OK"
                         output["To check"] = None
+                        output["Preset name"] = None
                     yield output
                     if limit.is_reached():
                         return
@@ -116,7 +122,7 @@ class ACSCheckerConnector(Connector):
                         "project_key": project_key,
                         "object_id": recipe_id,
                     }
-                    auth_type = get_auth_type(recipe)
+                    auth_type, preset_name = get_auth_type(recipe)
                     if auth_type == "site-app-permissions":
                         output["Status"] = "KO"
                         output["To check"] = "{}/projects/{}/recipes/{}/".format(
@@ -124,9 +130,11 @@ class ACSCheckerConnector(Connector):
                             project_key,
                             recipe_id
                         )
+                        output["Preset name"] = preset_name
                     else:
                         output["Status"] = "OK"
                         output["To check"] = None
+                        output["Preset name"] = None
                     yield output
                     if limit.is_reached():
                         return
@@ -149,8 +157,10 @@ class ACSCheckerConnector(Connector):
 
 
 def get_auth_type(raw_parameters):
+    print("ALX:raw={}".format(raw_parameters))
     config_section = get_config_section(raw_parameters)
-    return config_section.get("auth_type", None)
+    preset_name = get_preset_name(config_section)
+    return config_section.get("auth_type", None), preset_name
 
 
 def get_config_section(raw_parameters):
@@ -166,3 +176,21 @@ def get_config_section(raw_parameters):
             return params.get("config")
     else:
         return raw_parameters.get("config", {})
+
+
+def get_preset_name(raw_parameters):
+    auth_type = raw_parameters.get("auth_type")
+    preset = get_preset(raw_parameters, auth_type)
+    mode = preset.get("mode")
+    if mode == "INLINE":
+        return "Manually defined"
+    elif mode == "NONE":
+        return "None"
+    elif mode == "PRESET":
+        return preset.get("name")
+
+
+def get_preset(raw_paremeters, auth_type):
+    if auth_type == "site-app-permissions":
+        return raw_paremeters.get("site_app_permissions", {})
+    return {}
